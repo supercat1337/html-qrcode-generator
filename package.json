@@ -1,5 +1,5 @@
 {
-    "name": "html-qrcode-generator",
+    "name": "html-qrcode-scanner",
     "version": "1.0.0",
     "description": "",
     "license": "ISC",
@@ -9,14 +9,14 @@
     "scripts": {
         "build_min": "npm run remove_type_files && npm run remove_js_files && npm run build_esm_min",
         "build": "npm run remove_type_files && npm run remove_js_files && npm run build_esm_bundle && npm run build_esm_min && npm run create_types",
-        "build_esm_bundle": "esbuild --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/qrcode-generator.esm.js",
-        "build_esm": "rollup ./src/index.js --file ./dist/qrcode-generator.esm.js --format es",
-        "build_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/qrcode-generator.esm.min.js",
+        "build_esm_bundle": "esbuild --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/qrcode-scanner.esm.js",
+        "build_esm": "rollup ./src/index.js --file ./dist/qrcode-scanner.esm.js --format es",
+        "build_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/qrcode-scanner.esm.min.js",
         "create_types": "npx -p typescript tsc --project my.tsconfig.types.json",
         "remove_type_files": "del /q *.d.ts *.d.ts.map && cd dist && del /s /q *.d.ts *.d.ts.map && cd ../src && del /s /q *.d.ts *.d.ts.map && cd ..",
         "remove_js_files": "cd dist && del /s /q *.js && cd .."
     },
     "dependencies": {
-        "qrcode-generator": "^2.0.4"
+        "jsqr": "^1.4.0"
     }
 }

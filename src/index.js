@@ -1,306 +1,326 @@
 // @ts-check
 
-import qrcode from "qrcode-generator";
+import jsQR from "jsqr/dist/jsQR.js";
 
-// JSDoc with TypeScript typing
 /**
- * QR Code Generator class
+ * @typedef {Object} QRScannerOptions
+ * @property {string} dropAreaId - ID of the drop area element
+ * @property {string} fileInputId - ID of the file input element
+ * @property {string} previewId - ID of the preview image element
+ * @property {string} previewAreaId - ID of the preview area container
+ * @property {string} resultTextId - ID of the result textarea
+ * @property {string} copyBtnId - ID of the copy button
+ * @property {string} clearBtnId - ID of the clear button
+ */
+
+/**
+ * QR Code Scanner class
  * @class
  */
-class QRCodeGenerator {
+class QRScanner {
     /**
-     * @constructor
-     * @param {string} textInputId - ID of the text input element
-     * @param {string} qrCodeContainerId - ID of the QR code container element
-     * @param {string} generateBtnId - ID of the generate button
-     * @param {string} pasteBtnId - ID of the paste button
-     * @param {string} clearBtnId - ID of the clear button
-     * @param {number} [maxLength=1000] - Maximum text length for QR code
+     * @param {QRScannerOptions} options - Configuration options
      */
-    constructor(
-        textInputId,
-        qrCodeContainerId,
-        generateBtnId,
-        pasteBtnId,
-        clearBtnId,
-        maxLength = 1000
-    ) {
+    constructor(options) {
+        /** @type {HTMLElement} */
+        this.dropArea = document.getElementById(options.dropAreaId);
+
+        /** @type {HTMLInputElement} */
+        this.fileInput = /** @type {HTMLInputElement} */ (
+            document.getElementById(options.fileInputId)
+        );
+
+        /** @type {HTMLImageElement} */
+        this.preview = /** @type {HTMLImageElement} */ (
+            document.getElementById(options.previewId)
+        );
+
+        /** @type {HTMLElement} */
+        this.previewArea = /** @type {HTMLElement} */ (
+            document.getElementById(options.previewAreaId)
+        );
+
         /** @type {HTMLTextAreaElement} */
-        this.textInput = /** @type {HTMLTextAreaElement} */ (
-            document.getElementById(textInputId)
-        );
-
-        /** @type {HTMLDivElement} */
-        this.qrCodeContainer = /** @type {HTMLDivElement} */ (
-            document.getElementById(qrCodeContainerId)
+        this.resultText = /** @type {HTMLTextAreaElement} */ (
+            document.getElementById(options.resultTextId)
         );
 
         /** @type {HTMLButtonElement} */
-        this.generateBtn = /** @type {HTMLButtonElement} */ (
-            document.getElementById(generateBtnId)
-        );
-
-        /** @type {HTMLButtonElement} */
-        this.pasteBtn = /** @type {HTMLButtonElement} */ (
-            document.getElementById(pasteBtnId)
+        this.copyBtn = /** @type {HTMLButtonElement} */ (
+            document.getElementById(options.copyBtnId)
         );
 
         /** @type {HTMLButtonElement} */
         this.clearBtn = /** @type {HTMLButtonElement} */ (
-            document.getElementById(clearBtnId)
+            document.getElementById(options.clearBtnId)
         );
 
-        /** @type {number} */
-        this.maxLength = maxLength;
-
-        /** @type {HTMLDivElement} */
-        this.errorContainer = document.createElement("div");
-        this.errorContainer.className = "error-message";
-        this.errorContainer.style.color = "red";
-        this.errorContainer.style.margin = "10px 0";
-        this.textInput.parentNode?.insertBefore(
-            this.errorContainer,
-            this.textInput.nextSibling
-        );
-
-        this.initializeEventListeners();
-        this.setupLengthValidation();
+        this.init();
     }
 
     /**
-     * Initialize event listeners for buttons
+     * Initialize event listeners
      * @private
      */
-    initializeEventListeners() {
-        this.generateBtn.addEventListener("click", () => this.generateQRCode());
-        this.pasteBtn.addEventListener("click", () => this.pasteText());
-        this.clearBtn.addEventListener("click", () => this.clearAll());
+    init() {
+        // Drop area events
+        this.dropArea.addEventListener("click", () => this.fileInput.click());
+        this.dropArea.addEventListener("dragover", (e) =>
+            this.handleDragOver(e)
+        );
+        this.dropArea.addEventListener("dragleave", () =>
+            this.handleDragLeave()
+        );
+        this.dropArea.addEventListener("drop", (e) => this.handleDrop(e));
 
-        this.textInput.addEventListener("input", () =>
-            this.validateInputLength()
+        // File input event
+        this.fileInput.addEventListener("change", (e) =>
+            this.handleFileSelect(e)
         );
 
-        // Generate QR code on Enter key in textarea
-        this.textInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                this.generateQRCode();
-            }
-        });
+        // Clipboard paste event
+        document.addEventListener("paste", (e) => this.handlePaste(e));
+
+        // Button events
+        this.copyBtn.addEventListener("click", () => this.copyToClipboard());
+        this.clearBtn.addEventListener("click", () => this.clearResults());
+
+        // Enable buttons when there's text
+        this.resultText.addEventListener("input", () => this.toggleButtons());
     }
 
     /**
-     * Setup input length validation
+     * Handle drag over event
+     * @param {DragEvent} e - Drag event
      * @private
      */
-    setupLengthValidation() {
-        this.textInput.setAttribute("maxlength", this.maxLength.toString());
+    handleDragOver(e) {
+        e.preventDefault();
+        this.dropArea.classList.add("dragover");
     }
 
     /**
-     * Validate input length and show warning if needed
+     * Handle drag leave event
      * @private
      */
-    validateInputLength() {
-        const text = this.textInput.value;
-        if (text.length > this.maxLength * 0.8) {
-            // 80% of max length
-            const remaining = this.maxLength - text.length;
-            this.errorContainer.textContent = `Warning: ${remaining} characters remaining. Very long text may not fit in QR code.`;
-        } else {
-            this.errorContainer.textContent = "";
+    handleDragLeave() {
+        this.dropArea.classList.remove("dragover");
+    }
+
+    /**
+     * Handle drop event
+     * @param {DragEvent} e - Drop event
+     * @private
+     */
+    handleDrop(e) {
+        e.preventDefault();
+        this.dropArea.classList.remove("dragover");
+
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+            this.processFile(files[0]);
         }
     }
 
     /**
-     * Get optimal error correction level based on text length
+     * Handle file select event
+     * @param {Event} e - Input event
      * @private
-     * @param {string} text - Input text
-     * @returns {'L' | 'M' | 'Q' | 'H'} Error correction level
      */
-    getOptimalErrorCorrection(text) {
-        // For longer texts, use lower error correction to fit more data
-        if (text.length > 500) return "L"; // Low (7%)
-        if (text.length > 200) return "M"; // Medium (15%)
-        if (text.length > 100) return "Q"; // Quartile (25%)
-        return "H"; // High (30%) - better for short texts
-    }
-
-    /**
-     * Generate QR code from input text with optimal settings
-     * @public
-     */
-    generateQRCode() {
-        const text = this.textInput.value.trim();
-
-        if (!text) {
-            this.showError("Please enter some text first!");
-            return;
-        }
-
-        if (text.length > this.maxLength) {
-            this.showError(
-                `Text is too long! Maximum ${this.maxLength} characters allowed.`
-            );
-            return;
-        }
-
-        // Clear previous QR code and errors
-        this.qrCodeContainer.innerHTML = "";
-        this.errorContainer.textContent = "";
-
-        try {
-            const errorCorrectionLevel = this.getOptimalErrorCorrection(text);
-
-            // Let library automatically choose the best type number
-            const qr = qrcode(0, errorCorrectionLevel);
-            qr.addData(text);
-            qr.make();
-
-            // Create SVG for better quality scaling
-            const svg = this.createQRCodeSVG(qr);
-            this.qrCodeContainer.appendChild(svg);
-
-            // Show QR code info
-            this.showQRCodeInfo(qr, text.length, errorCorrectionLevel);
-        } catch (error) {
-            console.error("QR Code generation error:", error);
-            this.showError(
-                "Error generating QR code. The text might be too long or contain unsupported characters."
-            );
+    handleFileSelect(e) {
+        const target = /** @type {HTMLInputElement} */ (e.target);
+        const files = target.files;
+        if (files && files.length > 0) {
+            this.processFile(files[0]);
         }
     }
 
     /**
-     * Create SVG element for QR code (better quality than canvas)
+     * Handle paste event from clipboard
+     * @param {ClipboardEvent} e - Clipboard event
      * @private
-     * @param {any} qr - QR code instance
-     * @returns {SVGSVGElement} SVG element
      */
-    createQRCodeSVG(qr) {
-        const moduleCount = qr.getModuleCount();
-        const size = 200;
-        const moduleSize = size / moduleCount;
+    handlePaste(e) {
+        const items = e.clipboardData?.items;
+        if (!items) return;
 
-        const svg = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "svg"
-        );
-        svg.setAttribute("width", size.toString());
-        svg.setAttribute("height", size.toString());
-        svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
-        svg.style.border = "1px solid #ddd";
-        svg.style.background = "white";
-
-        const rect = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "rect"
-        );
-        rect.setAttribute("width", "100%");
-        rect.setAttribute("height", "100%");
-        rect.setAttribute("fill", "#ffffff");
-        svg.appendChild(rect);
-
-        for (let row = 0; row < moduleCount; row++) {
-            for (let col = 0; col < moduleCount; col++) {
-                if (qr.isDark(row, col)) {
-                    const rect = document.createElementNS(
-                        "http://www.w3.org/2000/svg",
-                        "rect"
-                    );
-                    rect.setAttribute("x", (col * moduleSize).toString());
-                    rect.setAttribute("y", (row * moduleSize).toString());
-                    rect.setAttribute("width", moduleSize.toString());
-                    rect.setAttribute("height", moduleSize.toString());
-                    rect.setAttribute("fill", "#000000");
-                    svg.appendChild(rect);
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") !== -1) {
+                const blob = items[i].getAsFile();
+                if (blob) {
+                    this.processFile(blob);
+                    break;
                 }
             }
         }
-
-        return svg;
     }
 
     /**
-     * Show QR code generation information
+     * Scan QR code from image and display only the QR code area
+     * @param {HTMLImageElement} img - Image element
      * @private
-     * @param {any} qr - QR code instance
-     * @param {number} textLength - Length of the input text
-     * @param {string} errorCorrection - Error correction level used
      */
-    showQRCodeInfo(qr, textLength, errorCorrection) {
-        const info = document.createElement("div");
-        info.style.marginTop = "10px";
-        info.style.fontSize = "12px";
-        info.style.color = "#666";
+    scanQRCode(img) {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-        const moduleCount = qr.getModuleCount();
-        info.textContent =
-            `QR Code: ${moduleCount}x${moduleCount} modules | ` +
-            `Text: ${textLength} chars | ` +
-            `Error correction: ${errorCorrection}`;
+        canvas.width = img.width;
+        canvas.height = img.height;
 
-        this.qrCodeContainer.appendChild(info);
-    }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    /**
-     * Show error message
-     * @private
-     * @param {string} message - Error message
-     */
-    showError(message) {
-        this.errorContainer.textContent = message;
-        setTimeout(() => {
-            this.errorContainer.textContent = "";
-        }, 5000);
-    }
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-    /**
-     * Paste text from clipboard
-     * @public
-     * @async
-     */
-    async pasteText() {
         try {
-            const text = await navigator.clipboard.readText();
-
-            if (text.length > this.maxLength) {
-                this.showError(
-                    `Pasted text is too long! Only first ${this.maxLength} characters will be used.`
-                );
-                this.textInput.value = text.substring(0, this.maxLength);
-            } else {
-                this.textInput.value = text;
-            }
-
-            this.validateInputLength();
-        } catch (error) {
-            console.error("Failed to read from clipboard:", error);
-            this.showError(
-                "Unable to paste from clipboard. Please check browser permissions."
+            const code = jsQR(
+                imageData.data,
+                imageData.width,
+                imageData.height,
+                {
+                    inversionAttempts: "dontInvert",
+                }
             );
+
+            if (code) {
+                this.resultText.value = code.data;
+
+                // Crop and display only the QR code area
+                this.displayQRCodeArea(code.location, img);
+
+                this.toggleButtons();
+            } else {
+                this.resultText.value = "No QR code found";
+                this.previewArea.classList.add("hidden");
+            }
+        } catch (error) {
+            this.resultText.value = "Error scanning QR code: " + error.message;
+            this.previewArea.classList.add("hidden");
         }
     }
 
     /**
-     * Clear input and QR code
-     * @public
+     * Display only the QR code area from the image
+     * @param {{topRightCorner:{x:number, y:number}, topLeftCorner:{x:number, y:number}, bottomRightCorner:{x:number, y:number}, bottomLeftCorner:{x:number, y:number}, topRightFinderPattern: {x:number, y:number}, topLeftFinderPattern: {x:number, y:number}, bottomLeftFinderPattern: {x:number, y:number}}} location - QR code location data object
+     * @param {HTMLImageElement} originalImg - Original image element
+     * @private
      */
-    clearAll() {
-        this.textInput.value = "";
-        this.qrCodeContainer.innerHTML = "";
-        this.errorContainer.textContent = "";
+    displayQRCodeArea(location, originalImg) {
+        //console.log("QR Code Location:", location);
+
+        const qrCanvas = document.createElement("canvas");
+        const qrCtx = qrCanvas.getContext("2d");
+
+        // Calculate QR code boundaries with some padding
+        const padding = 10;
+        const qrWidth =
+            location.bottomRightCorner.x -
+            location.topLeftCorner.x +
+            padding * 2;
+        const qrHeight =
+            location.bottomRightCorner.y -
+            location.topLeftCorner.y +
+            padding * 2;
+
+        // Set canvas size to fit the QR code with padding
+        qrCanvas.width = qrWidth;
+        qrCanvas.height = qrHeight;
+
+        // Draw only the QR code area with padding
+        qrCtx.drawImage(
+            originalImg,
+            location.topLeftCorner.x - padding,
+            location.topLeftCorner.y - padding,
+            qrWidth,
+            qrHeight,
+            0,
+            0,
+            qrWidth,
+            qrHeight
+        );
+
+        // Update preview with cropped QR code
+        this.preview.src = qrCanvas.toDataURL();
+        this.previewArea.classList.remove("hidden");
+    }
+
+    /**
+     * Process image file for QR code scanning
+     * @param {File} file - Image file
+     * @private
+     */
+    processFile(file) {
+        if (!file.type.match("image.*")) {
+            alert("Please select an image file");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            // Create temporary image to get dimensions
+            const tempImg = new Image();
+
+            tempImg.onload = () => {
+                const target = e.target;
+                if (!target) return;
+
+                this.preview.src = e.target.result + "";
+                this.scanQRCode(tempImg); // Pass the loaded image for scanning
+            };
+
+            if (e.target == null) return;
+            tempImg.src = e.target.result + "";
+        };
+        reader.readAsDataURL(file);
+    }
+
+    /**
+     * Copy text to clipboard
+     * @private
+     */
+    copyToClipboard() {
+        this.resultText.select();
+        document.execCommand("copy");
+
+        // Visual feedback
+        const originalText = this.copyBtn.textContent;
+        this.copyBtn.textContent = "Copied!";
+        setTimeout(() => {
+            this.copyBtn.textContent = originalText;
+        }, 2000);
+    }
+
+    /**
+     * Clear results and reset UI
+     * @private
+     */
+    clearResults() {
+        this.resultText.value = "";
+        this.previewArea.classList.add("hidden");
+        this.preview.src = "";
+        this.fileInput.value = "";
+        this.toggleButtons();
+    }
+
+    /**
+     * Toggle buttons based on result text
+     * @private
+     */
+    toggleButtons() {
+        const hasText = this.resultText.value.trim().length > 0;
+        this.copyBtn.disabled = !hasText;
+        this.clearBtn.disabled = !hasText;
     }
 }
 
-// Initialize the QR code generator when DOM is loaded
+// Initialize the scanner when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-    new QRCodeGenerator(
-        "textInput",
-        "qrcode",
-        "generateBtn",
-        "pasteBtn",
-        "clearBtn",
-        1000 // Maximum 1000 characters
-    );
+    new QRScanner({
+        dropAreaId: "dropArea",
+        fileInputId: "fileInput",
+        previewId: "qrPreview",
+        previewAreaId: "previewArea",
+        resultTextId: "resultText",
+        copyBtnId: "copyBtn",
+        clearBtnId: "clearBtn",
+    });
 });

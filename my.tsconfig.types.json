@@ -12,6 +12,6 @@
         "moduleResolution": "NodeNext",
         "stripInternal": true
     },
-    "include": ["./dist/qrcode-generator.esm.js"],
+    "include": ["./dist/qrcode-scanner.esm.js"],
     "exclude": []
 }

@@ -27,8 +27,8 @@ A lightweight, client-side web application that generates QR codes from text inp
 ### Option 2: Clone Repository
 
 ```bash
-git clone https://github.com/supercat1337/html-qrcode-generator.git
-cd html-qrcode-generator
+git clone https://github.com/supercat1337/html-qrcode-scanner.git
+cd html-qrcode-scanner
 # Open index.html in your browser
 ```
 
@@ -55,7 +55,7 @@ Upload all files to your web server or hosting platform (Netlify, Vercel, GitHub
 ### Technologies Used
 
 -   **Pure JavaScript**: No frameworks or build tools required
--   **qrcode-generator**: Lightweight library (~8 KB)
+-   **qrcode-scanner**: Lightweight library (~8 KB)
 -   **SVG Rendering**: High-quality vector QR codes
 -   **Clipboard API**: Modern paste functionality
 -   **CSS Grid/Flexbox**: Responsive layout
