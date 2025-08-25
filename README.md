@@ -14,7 +14,7 @@ A lightweight, client-side web application that generates QR codes from text inp
 
 ## 🚀 Live Demo
 
-[View Live Application](https://supercat1337.github.io/qr-code-generator/)
+[View Live Application](https://supercat1337.github.io/html-qrcode-generator/)
 
 ## 📦 Installation & Usage
 
