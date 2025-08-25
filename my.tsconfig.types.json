@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "target": "ESNext",
+        "module": "NodeNext",
+        "emitDeclarationOnly": true,
+        "declaration": true,
+        "outDir": "./",
+        "rootDir": ".",
+        "declarationMap": true,
+        "lib": ["ESNext", "DOM", "ES2023"],
+        "moduleResolution": "NodeNext",
+        "stripInternal": true
+    },
+    "include": ["./dist/qrcode-generator.esm.js"],
+    "exclude": []
+}
