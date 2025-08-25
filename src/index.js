@@ -2,7 +2,12 @@
 
 import qrcode from "qrcode-generator";
 
-// JSDoc with TypeScript typing
+// Patch to support Unicode characters properly
+// @ts-ignore
+qrcode.stringToBytes = function (data) {
+    return data;
+};
+
 /**
  * QR Code Generator class
  * @class
@@ -15,7 +20,7 @@ class QRCodeGenerator {
      * @param {string} generateBtnId - ID of the generate button
      * @param {string} pasteBtnId - ID of the paste button
      * @param {string} clearBtnId - ID of the clear button
-     * @param {number} [maxLength=1000] - Maximum text length for QR code
+     * @param {number} [maxLength=800] - Maximum text length for QR code
      */
     constructor(
         textInputId,
@@ -23,7 +28,7 @@ class QRCodeGenerator {
         generateBtnId,
         pasteBtnId,
         clearBtnId,
-        maxLength = 1000
+        maxLength = 800
     ) {
         /** @type {HTMLTextAreaElement} */
         this.textInput = /** @type {HTMLTextAreaElement} */ (
@@ -115,7 +120,7 @@ class QRCodeGenerator {
     /**
      * Get optimal error correction level based on text length
      * @private
-     * @param {string} text - Input text
+     * @param {string|Uint8Array} text - Input text
      * @returns {'L' | 'M' | 'Q' | 'H'} Error correction level
      */
     getOptimalErrorCorrection(text) {
@@ -145,16 +150,23 @@ class QRCodeGenerator {
             return;
         }
 
+        let textByteArray = new TextEncoder().encode(text);
+
         // Clear previous QR code and errors
         this.qrCodeContainer.innerHTML = "";
         this.errorContainer.textContent = "";
 
         try {
-            const errorCorrectionLevel = this.getOptimalErrorCorrection(text);
+            const errorCorrectionLevel =
+                this.getOptimalErrorCorrection(textByteArray);
 
-            // Let library automatically choose the best type number
+            // Use typeNumber 0 for auto-detection with Unicode support
             const qr = qrcode(0, errorCorrectionLevel);
-            qr.addData(text);
+
+            //qr.addData(text, "Byte");
+            // Use byte array to support Unicode characters properly
+            // @ts-ignore
+            qr.addData(textByteArray, "Byte");
             qr.make();
 
             // Create SVG for better quality scaling
